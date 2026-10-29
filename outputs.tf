@@ -1,35 +1,48 @@
 output "available_models" {
-  description = "Models matching the discovery filters."
-  value = [
-    for m in data.aws_bedrock_foundation_models.available.model_summaries : {
-      model_id        = m.model_id
-      model_name      = m.model_name
-      provider        = m.provider_name
-      input           = m.input_modalities
-      output          = m.output_modalities
-      inference_types = m.inference_types_supported
-      customizations  = m.customizations_supported
-    }
-  ]
+  description = "Foundation models matching var.model_catalog, keyed by model ID."
+  value       = try(module.model_catalog[0].models, null)
 }
 
-output "selected_model" {
-  description = "Details of the chosen foundation model."
+output "enabled_model_ids" {
+  description = "Model IDs with an accepted access agreement."
+  value       = try(module.model_access[0].enabled_model_ids, [])
+}
+
+output "inference_profiles" {
+  description = "Inference profile ARNs by name. Use as modelId."
+  value       = { for k, m in module.inference_profile : k => m.arn }
+}
+
+output "provisioned_throughputs" {
+  description = "Provisioned model ARNs by name. Use as modelId."
+  value       = { for k, m in module.provisioned_throughput : k => m.arn }
+}
+
+output "guardrails" {
+  description = "Guardrail IDs and versions by name."
+  value       = { for k, m in module.guardrail : k => { id = m.id, arn = m.arn, version = m.version } }
+}
+
+output "invocation_logging" {
+  description = "Log destinations, if enabled."
+  value = try({
+    s3_bucket      = module.invocation_logging[0].s3_bucket
+    log_group_name = module.invocation_logging[0].log_group_name
+  }, null)
+}
+
+output "agents" {
+  description = "Agent IDs, alias IDs and role ARNs by name."
   value = {
-    model_id        = data.aws_bedrock_foundation_model.selected.model_id
-    model_arn       = data.aws_bedrock_foundation_model.selected.model_arn
-    model_name      = data.aws_bedrock_foundation_model.selected.model_name
-    provider        = data.aws_bedrock_foundation_model.selected.provider_name
-    inference_types = data.aws_bedrock_foundation_model.selected.inference_types_supported
+    for k, m in module.agent : k => {
+      agent_id = m.agent_id
+      alias_id = m.alias_id
+      role_arn = m.role_arn
+    }
   }
 }
 
-output "inference_profile_arn" {
-  description = "Use this ARN as the modelId when calling InvokeModel / Converse."
-  value       = aws_bedrock_inference_profile.this.arn
-}
-
-output "provisioned_model_arn" {
-  description = "ARN of the provisioned throughput, if enabled."
-  value       = try(aws_bedrock_provisioned_model_throughput.this[0].provisioned_model_arn, null)
+output "mantle_projects" {
+  description = "Mantle project IDs and ARNs by name."
+  value       = { for k, m in module.mantle_project : k => { project_id = m.project_id, arn = m.arn } }
 }
